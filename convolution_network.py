@@ -21,8 +21,8 @@ from tensorflow.examples.tutorials.mnist import input_data
 # Training Parameters
 learning_rate = 0.01
 num_steps = 50000
-batch_size = 2
-display_step = 100
+batch_size = 4
+display_step = 500
 
 image_size = 32
 # Network Parameters
@@ -57,7 +57,7 @@ def conv_net(x, weights, biases, dropout):
     # Convolution Layer
     conv1 = conv2d(x, weights['wc1'], biases['bc1'])
     # Max Pooling (down-sampling)
-    conv1 = maxpool2d(conv1, k=4)
+    conv1 = maxpool2d(conv1, k=2)
 
     # Convolution Layer
     conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
@@ -79,11 +79,11 @@ def conv_net(x, weights, biases, dropout):
 # Store layers weight & bias
 weights = {
     # 5x5 conv, 1 input, 32 outputs
-    'wc1': tf.Variable(tf.random_normal([5, 5, 3, 32])),
+    'wc1': tf.Variable(tf.random_normal([8, 8, 3, 32])),
     # 5x5 conv, 32 inputs, 64 outputs
-    'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
+    'wc2': tf.Variable(tf.random_normal([8, 8, 32, 64])),
     # fully connected, 7*7*64 inputs, 1024 outputs
-    'wd1': tf.Variable(tf.random_normal([2*2*64, 1024])),
+    'wd1': tf.Variable(tf.random_normal([4*4*64, 1024])),
     # 1024 inputs, 10 outputs (class prediction)
     'out': tf.Variable(tf.random_normal([1024, y_dimen]))
 }
