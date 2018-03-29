@@ -19,12 +19,12 @@ from tensorflow.examples.tutorials.mnist import input_data
 ##mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
 # Training Parameters
-learning_rate = 0.005
-num_steps = 100000
-batch_size = 4
+learning_rate = 0.01
+num_steps = 50000
+batch_size = 2
 display_step = 100
 
-image_size = 16
+image_size = 32
 # Network Parameters
 #num_input = image_size*image_size
 # num_classes = 10 # MNIST total classes (0-9 digits)
@@ -57,12 +57,12 @@ def conv_net(x, weights, biases, dropout):
     # Convolution Layer
     conv1 = conv2d(x, weights['wc1'], biases['bc1'])
     # Max Pooling (down-sampling)
-    conv1 = maxpool2d(conv1, k=2)
+    conv1 = maxpool2d(conv1, k=4)
 
     # Convolution Layer
     conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
     # Max Pooling (down-sampling)
-    conv2 = maxpool2d(conv2, k=2)
+    conv2 = maxpool2d(conv2, k=4)
 
     # Fully connected layer
     # Reshape conv2 output to fit fully connected layer input
@@ -83,7 +83,7 @@ weights = {
     # 5x5 conv, 32 inputs, 64 outputs
     'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
     # fully connected, 7*7*64 inputs, 1024 outputs
-    'wd1': tf.Variable(tf.random_normal([8*8*64, 1024])),
+    'wd1': tf.Variable(tf.random_normal([2*2*64, 1024])),
     # 1024 inputs, 10 outputs (class prediction)
     'out': tf.Variable(tf.random_normal([1024, y_dimen]))
 }
@@ -130,9 +130,10 @@ with tf.Session() as sess:
             logit_1,loss, acc = sess.run([logit1, loss_op, accuracy], feed_dict={X: batch_x,
                                                                  Y: batch_y,
                                                                  keep_prob: 1.0})
-            print("Step " + str(step) + ", Minibatch Loss= " + \
-                  "{:.0f}".format(loss) + ",  coordinate= (" + \
-                   "{:.0f}".format(logit_1[0])+","+"{:.0f}".format(logit_1[1])+")")
+            print("Step " + str(step) + "\n Minibatch Loss= " + \
+                  "{:.0f}".format(loss) + "\n  coordinate= (" + \
+                   "{:.0f}".format(logit_1[0])+","+"{:.0f}".format(logit_1[1])+")"
+                  )
             # print("Step " + str(step) + ", Minibatch Loss= " + \
             #       "{:.4f}".format(loss) + ", Training Accuracy= " + \
             #       "{:.3f}".format(acc))

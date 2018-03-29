@@ -3,12 +3,12 @@ from PIL import Image
 import numpy as np
 import pandas as pd
 
-LEFT_PATH = "E:\\FashionAI\\fashionAI_point\warm_up_train_20180222\\train\\"
-ANNOTATION_PATH = "E:\\FashionAI\\fashionAI_point\\warm_up_train_20180222\\train\\Annotations\\"
-BLOUSE_PATH = "E:\\FashionAI\\fashionAI_point\\warm_up_train_20180222" \
+LEFT_PATH = "E:\\FashionAI_Data\\fashionAI_point\warm_up_train_20180222\\train\\"
+ANNOTATION_PATH = "E:\\FashionAI_Data\\fashionAI_point\\warm_up_train_20180222\\train\\Annotations\\"
+BLOUSE_PATH = "E:\\FashionAI_Data\\fashionAI_point\\warm_up_train_20180222" \
               "\\train\Annotations\\blouse_small.csv"
 RATIO = 0.6
-IMAGE_SIZE = 16
+IMAGE_SIZE = 32
 
 train_data_x = []
 train_data_y = []
