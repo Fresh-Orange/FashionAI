@@ -17,10 +17,11 @@ import read_data
 # Import MNIST data
 from tensorflow.examples.tutorials.mnist import input_data
 ##mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+model_path = read_data.LEFT_PATH+"\\tmp\\model.ckpt"
 
 # Training Parameters
-learning_rate = 0.01
-num_steps = 50000
+learning_rate = 0.001
+num_steps = 10000
 batch_size = 4
 display_step = 500
 
@@ -28,7 +29,7 @@ image_size = 32
 # Network Parameters
 #num_input = image_size*image_size
 # num_classes = 10 # MNIST total classes (0-9 digits)
-y_dimen = 2
+y_dimen = read_data.y_dimen
 dropout = 0.75 # Dropout, probability to keep units
 
 # tf Graph input
@@ -42,7 +43,7 @@ def conv2d(x, W, b, strides=1):
     # Conv2D wrapper, with bias and relu activation
     x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
     x = tf.nn.bias_add(x, b)
-    return tf.nn.relu(x)
+    return tf.nn.tanh(x)
 
 
 def maxpool2d(x, k=2):
@@ -68,7 +69,7 @@ def conv_net(x, weights, biases, dropout):
     # Reshape conv2 output to fit fully connected layer input
     fc1 = tf.reshape(conv2, [-1, weights['wd1'].get_shape().as_list()[0]])
     fc1 = tf.add(tf.matmul(fc1, weights['wd1']), biases['bd1'])
-    fc1 = tf.nn.relu(fc1)
+    fc1 = tf.nn.tanh(fc1)
     # Apply Dropout
     fc1 = tf.nn.dropout(fc1, dropout)
 
@@ -112,6 +113,7 @@ accuracy = tf.reduce_mean(tf.cast(loss_op, tf.float32))
 # Initialize the variables (i.e. assign their default value)
 init = tf.global_variables_initializer()
 
+saver = tf.train.Saver()
 
 read_data.prepare_data()
 
@@ -121,27 +123,44 @@ with tf.Session() as sess:
     # Run the initializer
     sess.run(init)
 
+    # Restore model weights from previously saved model
+
+    saver.restore(sess, model_path)
+    print("Model restored from file: %s" % model_path)
+
     for step in range(1, num_steps+1):
         batch_x, batch_y = read_data.next_train_batch(batch_size)
         # Run optimization op (backprop)
         sess.run(train_op, feed_dict={X: batch_x, Y: batch_y, keep_prob: 0.8})
         if step % display_step == 0 or step == 1:
             # Calculate batch loss and accuracy
-            logit_1,loss, acc = sess.run([logit1, loss_op, accuracy], feed_dict={X: batch_x,
+            logit_1,loss, acc = sess.run([logits, loss_op, accuracy], feed_dict={X: batch_x,
                                                                  Y: batch_y,
                                                                  keep_prob: 1.0})
+            # print("Step " + str(step) + "\n Minibatch Loss= " + \
+            #       "{:.0f}".format(loss) + "\n  coordinate= (" + \
+            #        "{:.0f}".format(logit_1[0])+","+"{:.0f}".format(logit_1[1])+")"
+            #       )
             print("Step " + str(step) + "\n Minibatch Loss= " + \
-                  "{:.0f}".format(loss) + "\n  coordinate= (" + \
-                   "{:.0f}".format(logit_1[0])+","+"{:.0f}".format(logit_1[1])+")"
-                  )
+                  "{:.0f}".format(loss))
+            for lo in logit_1:
+                print("{:.8f},{:.8f},{:.8f},{:.8f},{:.8f}".format(lo[0], lo[1], lo[2], lo[3], lo[4]))
+            print("------------------------------")
+        # if step % (display_step*5) == 0:
+        #     strr = input("请选择继续训练(y)还是退出(n)：");
+        #     if strr!="y":
+        #         break
             # print("Step " + str(step) + ", Minibatch Loss= " + \
             #       "{:.4f}".format(loss) + ", Training Accuracy= " + \
             #       "{:.3f}".format(acc))
 
-    print("Optimization Finished!")
+    save_path = saver.save(sess, model_path)
+
 
     # Calculate accuracy for 256 MNIST validation images
-    # print("Validation Accuracy:", \
-    #     sess.run(accuracy, feed_dict={X: read_data.validation_data_x,
-    #                                   Y: read_data.validation_data_y,
-    #                                   keep_prob: 1.0}))
+    print("Validation coordinate:", \
+        sess.run(logits, feed_dict={X: read_data.test_data_x[0:10],
+                                      Y: read_data.test_data_y[0:10],
+                                      keep_prob: 1.0}))
+
+    print("Optimization Finished!")
