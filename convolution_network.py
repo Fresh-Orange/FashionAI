@@ -1,11 +1,5 @@
 """ Convolutional Neural Network.
 
-Build and train a convolutional neural network with TensorFlow.
-This example is using the MNIST database of handwritten digits
-(http://yann.lecun.com/exdb/mnist/)
-
-Author: Aymeric Damien
-Project: https://github.com/aymericdamien/TensorFlow-Examples/
 """
 
 from __future__ import division, print_function, absolute_import
@@ -14,14 +8,26 @@ import tensorflow as tf
 
 import read_data
 
+import numpy as np
+
 # Import MNIST data
-from tensorflow.examples.tutorials.mnist import input_data
 ##mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
-model_path = read_data.LEFT_PATH+"\\tmp\\model.ckpt"
+
+# prepare data at first
+read_data.prepare_data()
+
+NEED_RESTORE = True
+NEED_SAVE = True
+
+LEFT_PATH = "E:\\FashionAI_Data\\fashionAI_point\\"
+model_path = LEFT_PATH + "\\tmp\\"+read_data.CLOTHES_TYPE+"model.ckpt"
+SAVE_PATH = "E:\\FashionAI_Data\\fashionAI_point\\fashionAI_key_points_test_a_20180227" \
+            "\\test\\Images\\"+read_data.CLOTHES_TYPE+"_res.csv"
+
 
 # Training Parameters
-learning_rate = 0.001
-num_steps = 10000
+learning_rate = 0.005
+num_steps = 15000
 batch_size = 4
 display_step = 500
 
@@ -115,7 +121,6 @@ init = tf.global_variables_initializer()
 
 saver = tf.train.Saver()
 
-read_data.prepare_data()
 
 # Start training
 with tf.Session() as sess:
@@ -124,14 +129,14 @@ with tf.Session() as sess:
     sess.run(init)
 
     # Restore model weights from previously saved model
-
-    saver.restore(sess, model_path)
-    print("Model restored from file: %s" % model_path)
+    if NEED_RESTORE:
+        saver.restore(sess, model_path)
+        print("Model restored from file: %s" % model_path)
 
     for step in range(1, num_steps+1):
         batch_x, batch_y = read_data.next_train_batch(batch_size)
         # Run optimization op (backprop)
-        sess.run(train_op, feed_dict={X: batch_x, Y: batch_y, keep_prob: 0.8})
+        sess.run(train_op, feed_dict={X: batch_x, Y: batch_y, keep_prob: dropout})
         if step % display_step == 0 or step == 1:
             # Calculate batch loss and accuracy
             logit_1,loss, acc = sess.run([logits, loss_op, accuracy], feed_dict={X: batch_x,
@@ -144,7 +149,7 @@ with tf.Session() as sess:
             print("Step " + str(step) + "\n Minibatch Loss= " + \
                   "{:.0f}".format(loss))
             for lo in logit_1:
-                print("{:.8f},{:.8f},{:.8f},{:.8f},{:.8f}".format(lo[0], lo[1], lo[2], lo[3], lo[4]))
+                print("{:.0f},{:.0f},{:.0f},{:.0f},{:.0f}".format(lo[0], lo[1], lo[2], lo[3], lo[4]))
             print("------------------------------")
         # if step % (display_step*5) == 0:
         #     strr = input("请选择继续训练(y)还是退出(n)：");
@@ -154,13 +159,37 @@ with tf.Session() as sess:
             #       "{:.4f}".format(loss) + ", Training Accuracy= " + \
             #       "{:.3f}".format(acc))
 
-    save_path = saver.save(sess, model_path)
+    if NEED_SAVE:
+        save_path = saver.save(sess, model_path)
+        print("Model saved from file: %s" % model_path)
 
 
     # Calculate accuracy for 256 MNIST validation images
-    print("Validation coordinate:", \
-        sess.run(logits, feed_dict={X: read_data.test_data_x[0:10],
-                                      Y: read_data.test_data_y[0:10],
-                                      keep_prob: 1.0}))
+    res = sess.run(logits, feed_dict={X: read_data.test_data_x,
+                                Y: read_data.test_data_y,
+                                keep_prob: 1.0})
+    res = np.asarray(res)
+    res = res.astype(int)
+    with open(SAVE_PATH, "w") as f:
+        for line in res:
+            clo_idx = 0
+            line_to_write = ""
+            for i,od in enumerate(line):
+                while clo_idx < len(read_data.y_valid) and read_data.y_valid[clo_idx]==False:
+                    line_to_write = line_to_write+"-1_-1_-1,"
+                    clo_idx = clo_idx + 1
+                if i % 2 == 0:
+                    line_to_write = line_to_write + str(od)
+                else:
+                    line_to_write = line_to_write + "_{:.0f}_1,".format(od)
+                    clo_idx = clo_idx + 1
+
+            while clo_idx < len(read_data.y_valid) and read_data.y_valid[clo_idx] == False:
+                line_to_write = line_to_write + "-1_-1_-1,"
+                clo_idx = clo_idx + 1
+            line_to_write.strip(",")
+            f.write(line_to_write+"\n")
+    ##np.savetxt(SAVE_PATH, res,fmt='%i', delimiter=",")
+
 
     print("Optimization Finished!")

@@ -2,16 +2,19 @@
 from PIL import Image
 import numpy as np
 import pandas as pd
-
-LEFT_PATH = "E:\\FashionAI_Data\\fashionAI_point\warm_up_train_20180222\\train\\"
-ANNOTATION_PATH = LEFT_PATH+"Annotations\\"
-BLOUSE_PATH = LEFT_PATH+"\\Annotations\\blouse.csv"
-TEST_PATH = LEFT_PATH+"\\Annotations\\blouse_test.csv"
-RATIO = 0.6
+types = ["blouse", "skirt","outwear","dress","trousers"]
+CLOTHES_TYPE = types[3]
+TRAIN_ROOT_PATH = "E:\\FashionAI_Data\\fashionAI_point\\fashionAI_key_points_train_20180227\\train\\"
+TEST_ROOT_PATH = "E:\\FashionAI_Data\\fashionAI_point\\fashionAI_key_points_test_a_20180227\\test\\"
+ANNOTATION_PATH = TRAIN_ROOT_PATH + "Annotations\\"
+TRAIN_PATH = TRAIN_ROOT_PATH + "Annotations\\train.csv"
+TEST_PATH = "E:\\FashionAI_Data\\fashionAI_point\\fashionAI_key_points_test_a_20180227\\test\\test.csv"
+RATIO = 0.95
 IMAGE_SIZE = 32
-y_idx = np.arange(2,8+1)
-y_idx = np.hstack((y_idx, np.arange(11,17)))
-y_dimen = len(y_idx)*2
+
+y_valid = []
+y_idx = []
+y_dimen = 0
 
 train_data_x = []
 train_data_y = []
@@ -22,29 +25,60 @@ test_data_y = []
 
 is_prepared = False
 
+def outlier_process(data):
+    mean_row = np.mean(data, axis=0)
+    col_num = data.shape[1]
+    print("processing outliers, col_num = ", col_num)
+    for i in range(col_num):
+        data[data[:, 0] == -1, i] = mean_row[i]
+    return data
+
+def get_valid_idx(data_frame):
+    """
+    判定哪些列是有效列，有效列是指非全部都是“-1_-1_-1”的；列
+    :param data_frame:
+    :return:
+    """
+    global y_idx,y_dimen,y_valid
+    y_valid = []
+    y_idx = []
+    for i in range(len(data_frame.columns[2:])):
+        i = i + 2
+        start = data_frame.index[0]
+        y_valid.append(data_frame.ix[start, i] != data_frame.ix[start+1, i])
+        if data_frame.ix[start, i] != data_frame.ix[start+1, i]:
+            y_idx.append(i)
+    print("valid indexs = ",y_idx)
+    y_dimen = len(y_idx)*2
+    return y_idx
+
 def prepare_data():
     global train_data_x,train_data_y,validation_data_x,\
-        validation_data_y,is_prepared,test_data_x,test_data_y,y_idx
+        validation_data_y,is_prepared,test_data_x,test_data_y,y_idx,y_dimen
+
 
     # pandas read csv
-    df = pd.read_csv(BLOUSE_PATH)
-    image_paths = df.ix[:, 'image_id']
-    neckline_left = df.ix[:, y_idx]
-    neckline_left = np.asarray(neckline_left)
+    df = pd.read_csv(TRAIN_PATH)
+    df = df[df["image_category"] == CLOTHES_TYPE] # select clothes type
+    image_paths = df.ix[:, 0]
+    y_idx = get_valid_idx(df)
+    opint_data = df.ix[:, y_idx]
+    opint_data = np.asarray(opint_data)
 
     # compute number of train data
     train_num = round(image_paths.size * RATIO)
 
+
     # read X data(which is image)
     for i,p in enumerate(image_paths):
-        im = Image.open(LEFT_PATH + p)
+        im = Image.open(TRAIN_ROOT_PATH + p)
         im = im.resize((IMAGE_SIZE, IMAGE_SIZE), Image.ANTIALIAS)
         if i < train_num:
             train_data_x.append(np.asarray(im))
         else:
             validation_data_x.append(np.asarray(im))
 
-    # turn list data to ndarray
+    # zero-mean normalization and turn list data to ndarray
     train_data_x = (np.asarray(train_data_x) / 255) - 0.5
     validation_data_x = (np.asarray(validation_data_x) / 255) - 0.5
 
@@ -53,7 +87,7 @@ def prepare_data():
     temp_y = []
     # read Y data(which is coordinate)
     for yi in range(len(y_idx)):
-        split_neckline_left = [x.split("_") for x in neckline_left[:,yi]]
+        split_neckline_left = [x.split("_") for x in opint_data[:,yi]]
         y = np.asarray(split_neckline_left, 'int32')
         y = np.reshape(y, [-1, 3])
         if yi == 0:
@@ -62,7 +96,9 @@ def prepare_data():
             temp_y = np.hstack((temp_y, y[:, 0:2]))
 
     train_data_y = temp_y[0:train_num]
+    train_data_y = outlier_process(train_data_y)
     validation_data_y = temp_y[train_num:]
+    validation_data_y = outlier_process(validation_data_y)
 
     # print(train_data_y.shape)
     # print(train_data_y[0])
@@ -70,29 +106,21 @@ def prepare_data():
     ############################### READ TEST DATA ###############################
     # pandas read csv
     df = pd.read_csv(TEST_PATH)
-    image_paths = df.ix[:, 'image_id']
-    neckline_left = df.ix[:, y_idx]
-    neckline_left = np.asarray(neckline_left)
+    df = df[df["image_category"] == CLOTHES_TYPE]
+    image_paths = df.ix[:,0]
 
 
     # read X data(which is image)
     for i, p in enumerate(image_paths):
-        im = Image.open(LEFT_PATH + p)
+        im = Image.open(TEST_ROOT_PATH + p)
         im = im.resize((IMAGE_SIZE, IMAGE_SIZE), Image.ANTIALIAS)
         test_data_x.append(np.asarray(im))
 
     # turn list data to ndarray
     test_data_x = (np.asarray(test_data_x) / 255) - 0.5
 
-    # read Y data(which is coordinate)
-    for yi in range(len(y_idx)):
-        split_neckline_left = [x.split("_") for x in neckline_left[:,yi]]
-        y = np.asarray(split_neckline_left, 'int32')
-        y = np.reshape(y, [-1, 3])
-        if yi == 0:
-            test_data_y = y[:, 0:2]
-        else:
-            test_data_y = np.hstack((test_data_y, y[:, 0:2]))
+
+    test_data_y = np.zeros((len(test_data_x), y_dimen), dtype=int)
 
     print("prepared!")
     is_prepared = True
