@@ -1,42 +1,39 @@
 """ Convolutional Neural Network.
-
 """
 
 from __future__ import division, print_function, absolute_import
-
 import tensorflow as tf
-
 import read_data
-
 import numpy as np
-
-# Import MNIST data
-##mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
 # prepare data at first
 read_data.prepare_data()
 
-NEED_RESTORE = True
+# need to restore/save model ?
+NEED_RESTORE = False
 NEED_SAVE = True
 
+
 LEFT_PATH = "E:\\FashionAI_Data\\fashionAI_point\\"
-model_path = LEFT_PATH + "\\tmp\\"+read_data.CLOTHES_TYPE+"model.ckpt"
+
+# 模型保存的路径，模型可以保存然后下次读取出来继续训练
+model_path = LEFT_PATH + "\\tmp\\"+read_data.CLOTHES_TYPE+"model_3level.ckpt"
+
+# 训练结果保存的路径
 SAVE_PATH = "E:\\FashionAI_Data\\fashionAI_point\\fashionAI_key_points_test_a_20180227" \
             "\\test\\Images\\"+read_data.CLOTHES_TYPE+"_res.csv"
 
 
 # Training Parameters
-learning_rate = 0.005
-num_steps = 15000
+learning_rate = 0.001
+num_steps = 2000
 batch_size = 4
-display_step = 500
+display_step = 200
 
-image_size = 32
+image_size = read_data.IMAGE_SIZE
 # Network Parameters
-#num_input = image_size*image_size
-# num_classes = 10 # MNIST total classes (0-9 digits)
 y_dimen = read_data.y_dimen
-dropout = 0.75 # Dropout, probability to keep units
+dropout = 0.8 # Dropout, probability to keep units
 
 # tf Graph input
 X = tf.placeholder(tf.float32, [None, image_size,image_size,3])
@@ -62,7 +59,7 @@ def maxpool2d(x, k=2):
 def conv_net(x, weights, biases, dropout):
     #x = tf.reshape(x, shape=[-1, image_size, image_size, 3])
     # Convolution Layer
-    conv1 = conv2d(x, weights['wc1'], biases['bc1'])
+    conv1 = conv2d(x, weights['wc1'], biases['bc1'], strides=2)
     # Max Pooling (down-sampling)
     conv1 = maxpool2d(conv1, k=2)
 
@@ -71,9 +68,14 @@ def conv_net(x, weights, biases, dropout):
     # Max Pooling (down-sampling)
     conv2 = maxpool2d(conv2, k=4)
 
+    # Convolution Layer
+    conv3 = conv2d(conv2, weights['wc3'], biases['bc3'])
+    # Max Pooling (down-sampling)
+    conv3 = maxpool2d(conv3, k=2)
+
     # Fully connected layer
     # Reshape conv2 output to fit fully connected layer input
-    fc1 = tf.reshape(conv2, [-1, weights['wd1'].get_shape().as_list()[0]])
+    fc1 = tf.reshape(conv3, [-1, weights['wd1'].get_shape().as_list()[0]])
     fc1 = tf.add(tf.matmul(fc1, weights['wd1']), biases['bd1'])
     fc1 = tf.nn.tanh(fc1)
     # Apply Dropout
@@ -88,9 +90,11 @@ weights = {
     # 5x5 conv, 1 input, 32 outputs
     'wc1': tf.Variable(tf.random_normal([8, 8, 3, 32])),
     # 5x5 conv, 32 inputs, 64 outputs
-    'wc2': tf.Variable(tf.random_normal([8, 8, 32, 64])),
+    'wc2': tf.Variable(tf.random_normal([5,5, 32, 64])),
+    # 5x5 conv, 32 inputs, 64 outputs
+    'wc3': tf.Variable(tf.random_normal([4, 4, 64, 128])),
     # fully connected, 7*7*64 inputs, 1024 outputs
-    'wd1': tf.Variable(tf.random_normal([4*4*64, 1024])),
+    'wd1': tf.Variable(tf.random_normal([8*8*128, 1024])),
     # 1024 inputs, 10 outputs (class prediction)
     'out': tf.Variable(tf.random_normal([1024, y_dimen]))
 }
@@ -98,6 +102,7 @@ weights = {
 biases = {
     'bc1': tf.Variable(tf.random_normal([32])),
     'bc2': tf.Variable(tf.random_normal([64])),
+    'bc3': tf.Variable(tf.random_normal([128])),
     'bd1': tf.Variable(tf.random_normal([1024])),
     'out': tf.Variable(tf.random_normal([y_dimen]))
 }
@@ -110,11 +115,6 @@ logit1 = logits[0]
 loss_op = tf.reduce_mean(tf.square(logits-Y))
 optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
 train_op = optimizer.minimize(loss_op)
-
-
-# Evaluate model
-#correct_pred = tf.equal(tf.argmax(prediction, 1), tf.argmax(Y, 1))
-accuracy = tf.reduce_mean(tf.cast(loss_op, tf.float32))
 
 # Initialize the variables (i.e. assign their default value)
 init = tf.global_variables_initializer()
@@ -138,36 +138,27 @@ with tf.Session() as sess:
         # Run optimization op (backprop)
         sess.run(train_op, feed_dict={X: batch_x, Y: batch_y, keep_prob: dropout})
         if step % display_step == 0 or step == 1:
-            # Calculate batch loss and accuracy
-            logit_1,loss, acc = sess.run([logits, loss_op, accuracy], feed_dict={X: batch_x,
+            # Calculate batch loss and coordinates
+            logit_1,loss= sess.run([logits, loss_op], feed_dict={X: batch_x,
                                                                  Y: batch_y,
                                                                  keep_prob: 1.0})
-            # print("Step " + str(step) + "\n Minibatch Loss= " + \
-            #       "{:.0f}".format(loss) + "\n  coordinate= (" + \
-            #        "{:.0f}".format(logit_1[0])+","+"{:.0f}".format(logit_1[1])+")"
-            #       )
             print("Step " + str(step) + "\n Minibatch Loss= " + \
                   "{:.0f}".format(loss))
             for lo in logit_1:
-                print("{:.0f},{:.0f},{:.0f},{:.0f},{:.0f}".format(lo[0], lo[1], lo[2], lo[3], lo[4]))
+                print("{:.0f},{:.0f}".format(lo[0], lo[1]))
             print("------------------------------")
-        # if step % (display_step*5) == 0:
-        #     strr = input("请选择继续训练(y)还是退出(n)：");
-        #     if strr!="y":
-        #         break
-            # print("Step " + str(step) + ", Minibatch Loss= " + \
-            #       "{:.4f}".format(loss) + ", Training Accuracy= " + \
-            #       "{:.3f}".format(acc))
 
+    # Save trained model
     if NEED_SAVE:
         save_path = saver.save(sess, model_path)
         print("Model saved from file: %s" % model_path)
 
-
-    # Calculate accuracy for 256 MNIST validation images
+    # Predict coordinates
     res = sess.run(logits, feed_dict={X: read_data.test_data_x,
                                 Y: read_data.test_data_y,
                                 keep_prob: 1.0})
+
+    # Write result into file
     res = np.asarray(res)
     res = res.astype(int)
     with open(SAVE_PATH, "w") as f:
@@ -189,7 +180,5 @@ with tf.Session() as sess:
                 clo_idx = clo_idx + 1
             line_to_write.strip(",")
             f.write(line_to_write+"\n")
-    ##np.savetxt(SAVE_PATH, res,fmt='%i', delimiter=",")
-
 
     print("Optimization Finished!")

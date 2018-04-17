@@ -2,15 +2,24 @@
 from PIL import Image
 import numpy as np
 import pandas as pd
+
+
 types = ["blouse", "skirt","outwear","dress","trousers"]
-CLOTHES_TYPE = types[3]
-TRAIN_ROOT_PATH = "E:\\FashionAI_Data\\fashionAI_point\\fashionAI_key_points_train_20180227\\train\\"
-TEST_ROOT_PATH = "E:\\FashionAI_Data\\fashionAI_point\\fashionAI_key_points_test_a_20180227\\test\\"
-ANNOTATION_PATH = TRAIN_ROOT_PATH + "Annotations\\"
-TRAIN_PATH = TRAIN_ROOT_PATH + "Annotations\\train.csv"
+CLOTHES_TYPE = types[2] # 这里控制本次要训练的服饰类型
+
+# 图像的目录
+TRAIN_DIR_PATH = "E:\\FashionAI_Data\\fashionAI_point\\fashionAI_key_points_train_20180227\\train\\"
+TEST_DIR_PATH = "E:\\FashionAI_Data\\fashionAI_point\\fashionAI_key_points_test_a_20180227\\test\\"
+
+# csv文件目录
+TRAIN_PATH = TRAIN_DIR_PATH + "Annotations\\train.csv"
 TEST_PATH = "E:\\FashionAI_Data\\fashionAI_point\\fashionAI_key_points_test_a_20180227\\test\\test.csv"
+
+# 训练集的占比，例如0.7表示训练集占训练数据的70%，验证集则是30%  注意不要设置为1
 RATIO = 0.95
-IMAGE_SIZE = 32
+
+# 图像的压缩后的大小，例如128表示要将图像压缩成128*128的大小
+IMAGE_SIZE = 128
 
 y_valid = []
 y_idx = []
@@ -23,6 +32,7 @@ validation_data_y = []
 test_data_x = []
 test_data_y = []
 
+# 标志，用于判断是否准备好数据
 is_prepared = False
 
 def outlier_process(data):
@@ -35,7 +45,8 @@ def outlier_process(data):
 
 def get_valid_idx(data_frame):
     """
-    判定哪些列是有效列，有效列是指非全部都是“-1_-1_-1”的；列
+    判定哪些列是有效列，有效列是指非全部都是“-1_-1_-1”的列
+
     :param data_frame:
     :return:
     """
@@ -53,6 +64,10 @@ def get_valid_idx(data_frame):
     return y_idx
 
 def prepare_data():
+    """
+    读取训练数据和测试数据进入内存以备使用
+    :return:
+    """
     global train_data_x,train_data_y,validation_data_x,\
         validation_data_y,is_prepared,test_data_x,test_data_y,y_idx,y_dimen
 
@@ -67,11 +82,11 @@ def prepare_data():
 
     # compute number of train data
     train_num = round(image_paths.size * RATIO)
-
+    print(train_num)
 
     # read X data(which is image)
     for i,p in enumerate(image_paths):
-        im = Image.open(TRAIN_ROOT_PATH + p)
+        im = Image.open(TRAIN_DIR_PATH + p)
         im = im.resize((IMAGE_SIZE, IMAGE_SIZE), Image.ANTIALIAS)
         if i < train_num:
             train_data_x.append(np.asarray(im))
@@ -112,7 +127,7 @@ def prepare_data():
 
     # read X data(which is image)
     for i, p in enumerate(image_paths):
-        im = Image.open(TEST_ROOT_PATH + p)
+        im = Image.open(TEST_DIR_PATH + p)
         im = im.resize((IMAGE_SIZE, IMAGE_SIZE), Image.ANTIALIAS)
         test_data_x.append(np.asarray(im))
 
